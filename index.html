@@ -109,8 +109,9 @@
             const gamingImage = await new Promise(async (resolve, reject) => {
                 const image = new Image();
                 image.src = "./gaming.png";
+                image.onerror = (e) => reject(e);
                 image.onload = () => resolve(image);
-            });
+            }).catch((e) => console.log(e));
 
             // Canvasに画像をセットする
             context.drawImage(gamingImage, 0, 0);
