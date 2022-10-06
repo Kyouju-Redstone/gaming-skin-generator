@@ -8,9 +8,9 @@
 </head>
 
 <body>
-    <p>※64x64のスキンのみ対応</p>
     <p>※スライダーでゲーミング色の濃さを変更できます</p><br>
 
+    <!-- スキン選択Form -->
     スキンを選択　<input id="skin_input" type="file" accept=".png">
     <br><br>
 
@@ -20,143 +20,16 @@
 
 
     <p>Original</p>
-    <canvas id="canvas_original" width="64" height="64"></canvas>
-    <canvas id="canvas_gaming" width="64" height="64" hidden></canvas>
+    <canvas id="canvas_original" width="64" height="64"></canvas><br>
+    <br>
+
     <p>Gaming</p>
     <canvas id="canvas_result" width="64" height="64"></canvas><br>
+    <br>
 
-    <button id="download" hidden>ダウンロード</button>
+    <button id="download">ダウンロード</button>
 
-    <script>
-        // 変数宣言
-        var alphaIndexes = [];
-
-        // 各Elementを取得
-        const imageInput = document.getElementById("skin_input");
-        const sliderInput = document.getElementById("slider");
-        const alphaInput = document.getElementById("alpha");
-        const canvasOriginal = document.getElementById("canvas_original");
-        const canvasGaming = document.getElementById("canvas_gaming");
-        const canvasResult = document.getElementById("canvas_result");
-        const downloadButton = document.getElementById("download");
-
-        // スライダーのリスナー
-        sliderInput.addEventListener("input", (e) => {
-            alphaInput.value = e.target.value;
-            setGamingCanvas();
-        });
-
-        // アルファ値Formのリスナー
-        alphaInput.addEventListener("input", (e) => {
-            var value = e.target.value;
-            if (0 <= value && value <= 1) {
-                sliderInput.value = value;
-                setGamingCanvas();
-            }
-        });
-
-        // 画像選択リスナー
-        imageInput.addEventListener("change", async () => {
-            var context = canvasOriginal.getContext("2d");
-
-            // Canvasをクリアする
-            context.clearRect(0, 0, canvasOriginal.width, canvasOriginal.height);
-
-            // Formで選択した画像を取得する
-            const skinImage = await new Promise(async (resolve, reject) => {
-                const image = new Image();
-                const imageUrl = await new Promise((resolve, reject) => {
-                    const image = imageInput.files[0];
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.onerror = (e) => reject(e);
-                    reader.readAsDataURL(image);
-                });
-                image.src = imageUrl;
-                image.onload = () => resolve(image);
-            });
-
-            // Canvasに画像をセットする
-            context.drawImage(skinImage, 0, 0);
-
-            // アルファ値が0のindexを取得
-            alphaIndexes = [];
-            var imageData = context.getImageData(0, 0, canvasOriginal.width, canvasOriginal.height);
-            for (var i = 3; i < imageData.data.length; i += 4) {
-                if (imageData.data[i] == 0) {
-                    // indexをリストに追加
-                    alphaIndexes.push(i);
-                }
-            }
-
-            await setGamingCanvas();
-        });
-
-        downloadButton.onclick = (event) => {
-            if (imageInput.files[0] == undefined) {
-                return;
-            }
-
-            const link = document.createElement("a");
-            link.href = canvasResult.toDataURL("image/png");
-            link.download = "gaming_skin.png";
-            link.click();
-        }
-
-
-        async function setGamingCanvas() {
-            var context = canvasGaming.getContext("2d");
-
-            // Canvasをクリアする
-            context.clearRect(0, 0, canvasGaming.width, canvasGaming.height);
-
-            // 画像を取得する
-            const gamingImage = await new Promise(async (resolve, reject) => {
-                const image = new Image();
-                image.src = "./gaming.png";
-                image.onerror = (e) => reject(e);
-                image.onload = () => resolve(image);
-            }).catch((e) => console.log(e));
-
-            // Canvasに画像をセットする
-            context.drawImage(gamingImage, 0, 0);
-
-            // アルファ値を選択した画像と揃える
-            var imageData = context.getImageData(0, 0, canvasGaming.width, canvasGaming.height);
-            for (var i = 3; i < imageData.data.length; i += 4) {
-                imageData.data[i] = alphaIndexes.includes(i) ? 0 : sliderInput.value * 255;
-            }
-
-            // Canvasに再び画像をセットする
-            context.putImageData(imageData, 0, 0);
-
-            await generateGamingSkin();
-        }
-
-        async function generateGamingSkin() {
-            if (imageInput.files[0] == undefined) {
-                return;
-            }
-
-            var contextOriginal = canvasOriginal.getContext("2d");
-            var contextGaming = canvasGaming.getContext("2d");
-            var contextResult = canvasResult.getContext("2d");
-
-            // 画像を重ねる
-            for (var i = 0; i < 2; i++) {
-                const image = await new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.onload = () => resolve(image);
-                    image.src = [
-                        contextOriginal.canvas.toDataURL(),
-                        contextGaming.canvas.toDataURL(),
-                    ][i];
-                });
-                contextResult.drawImage(image, 0, 0, canvasResult.width, canvasResult.height);
-            }
-            downloadButton.hidden = false;
-        }
-    </script>
+    <script src="./js/index.js"></script>
 </body>
 
 </html>
