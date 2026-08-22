@@ -5,30 +5,124 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gaming Skin Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 
 <body>
-    <p>※スライダーでゲーミング色の濃さを変更できます</p><br>
 
-    <!-- スキン選択Form -->
-    スキンを選択　<input id="skin_input" type="file" accept=".png">
-    <br><br>
+    <header class="header">
+        <h1 class="title"><span>GAMING</span> SKIN GENERATOR</h1>
+        <p class="subtitle">自作のMinecraftスキンを、ゲーミング仕様に変換しよう</p>
+    </header>
 
-    アルファ値 (濃さ)<br>
-    <input id="slider" type="range" min="0" max="1" step="0.01">
-    <input id="alpha" type="text" value="0.50"><br>
+    <main class="layout">
 
+        <!-- ステップ1: スキン読み込み -->
+        <section class="panel" id="panel-upload">
+            <h2 class="panel-title"><span class="step">01</span>スキンを選択</h2>
+            <p class="panel-desc">64×64 または 128×128 の PNG 画像に対応しています。</p>
 
-    <p>Original</p>
-    <canvas id="canvas_original" width="64" height="64"></canvas><br>
-    <br>
+            <label for="skin_input" class="dropzone" id="dropzone">
+                <div class="dropzone-icon" aria-hidden="true">📁</div>
+                <div class="dropzone-text">
+                    <strong>クリックして選択</strong>
+                    <span>またはファイルをここにドラッグ＆ドロップ</span>
+                </div>
+                <input id="skin_input" type="file" accept=".png,image/png">
+            </label>
 
-    <p>Gaming</p>
-    <canvas id="canvas_result" width="64" height="64"></canvas><br>
-    <br>
+            <p class="file-status" id="file_status">ファイルが選択されていません</p>
+            <p class="error-message" id="error_message" role="alert" hidden></p>
+        </section>
 
-    <button id="download">ダウンロード</button>
+        <!-- ステップ2: アルファ値調整 -->
+        <section class="panel" id="panel-alpha">
+            <h2 class="panel-title"><span class="step">02</span>ゲーミングの濃さ</h2>
+            <p class="panel-desc">スライダーでゲーミングカラーの重ね具合を調整できます。</p>
 
+            <div class="alpha-controls">
+                <input id="slider" class="slider" type="range" min="0" max="1" step="0.01" value="0.5">
+                <div class="alpha-value-wrap">
+                    <input id="alpha" class="alpha-input" type="text" inputmode="decimal" value="0.50">
+                </div>
+            </div>
+        </section>
+
+        <!-- ステップ3: 3Dプレビュー -->
+        <section class="panel panel-wide" id="panel-3d">
+            <h2 class="panel-title"><span class="step">03</span>3Dプレイヤープレビュー</h2>
+            <p class="panel-desc">マウスドラッグ（PC）またはタッチ操作（スマホ）でプレイヤーを回転・ズームできます。</p>
+
+            <div class="viewer-layout">
+                <div class="viewer-frame" id="viewer_frame">
+                    <canvas id="canvas_3d"></canvas>
+                    <p class="viewer-placeholder" id="viewer_placeholder">スキンを選択すると<br>ここに3Dモデルが表示されます</p>
+                </div>
+
+                <div class="viewer-controls">
+                    <div class="control-group">
+                        <label for="model_type">モデルタイプ</label>
+                        <select id="model_type">
+                            <option value="auto-detect">自動判定</option>
+                            <option value="default">クラシック（Steve）</option>
+                            <option value="slim">スリム（Alex）</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="animation_type">アニメーション</label>
+                        <select id="animation_type">
+                            <option value="idle">静止</option>
+                            <option value="walk" selected>歩く</option>
+                            <option value="run">走る</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group control-group--row">
+                        <label for="auto_rotate">自動回転</label>
+                        <input type="checkbox" id="auto_rotate" checked>
+                    </div>
+
+                    <button id="reset_camera" class="secondary-button" type="button">カメラをリセット</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ステップ4: プレビュー -->
+        <section class="panel panel-wide" id="panel-preview">
+            <h2 class="panel-title"><span class="step">04</span>画像プレビュー</h2>
+
+            <div class="preview-grid">
+                <div class="preview-card">
+                    <p class="preview-label">Original</p>
+                    <div class="canvas-frame">
+                        <canvas id="canvas_original" width="64" height="64"></canvas>
+                    </div>
+                </div>
+
+                <div class="preview-card">
+                    <p class="preview-label">Gaming</p>
+                    <div class="canvas-frame">
+                        <canvas id="canvas_result" width="64" height="64"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <button id="download" class="download-button" hidden>
+                <span>ダウンロード</span>
+            </button>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <p>※ 生成した画像の権利は元のスキンデータに準じます。ダウンロードした画像は自己責任でご利用ください。</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.4.2/bundles/skinview3d.bundle.js"></script>
     <script src="./js/index.js"></script>
 </body>
 
