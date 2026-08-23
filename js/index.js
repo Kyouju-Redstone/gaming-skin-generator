@@ -1,20 +1,18 @@
-// 変数宣言
-var alphaIndexes = [];
-var skinSize = 0;
-var skinViewer = null;
-var orbitControls = null;
+// 定数宣言
+const ALPHA_TRANSPARENT = 0;
 
 // 各Elementを取得
-const skinImageInput = document.getElementById("skin_input");
-const dropzone = document.getElementById("dropzone");
-const fileStatus = document.getElementById("file_status");
-const errorMessage = document.getElementById("error_message");
-const sliderInput = document.getElementById("slider");
-const alphaValueInput = document.getElementById("alpha");
-const canvasOriginal = document.getElementById("canvas_original");
-const canvasGaming = document.createElement("canvas");
-const canvasResult = document.getElementById("canvas_result");
-const downloadButton = document.getElementById("download");
+const elSkinImageInput = document.getElementById("skin_input");
+const elDropzone = document.getElementById("dropzone");
+const elFileStatus = document.getElementById("file_status");
+const elErrorMessage = document.getElementById("error_message");
+const elSliderInput = document.getElementById("slider");
+const elAlphaValueInput = document.getElementById("alpha");
+const elCanvasOriginalSkin = document.getElementById("canvas_original");
+const elCanvasGamingSkin = document.getElementById("canvas_gaming");
+const elCanvasGamingImage = document.createElement("canvas");
+const elCanvasLayerEditing = document.createElement("canvas");
+const elDownloadButton = document.getElementById("download");
 
 const canvas3d = document.getElementById("canvas_3d");
 const viewerPlaceholder = document.getElementById("viewer_placeholder");
@@ -23,81 +21,15 @@ const animationTypeSelect = document.getElementById("animation_type");
 const autoRotateCheckbox = document.getElementById("auto_rotate");
 const resetCameraButton = document.getElementById("reset_camera");
 
+// 変数宣言
+let skinImage;
+let gamingImage;
+let skinNonAlphaIndexList = [];
 
-// 画像選択のListener
-skinImageInput.addEventListener("change", async () => {
-    await handleSelectedFile(skinImageInput.files[0]);
-});
-
-
-// ドラッグ＆ドロップ対応
-["dragenter", "dragover"].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        dropzone.classList.add("is-dragover");
-    });
-});
-
-["dragleave", "drop"].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        dropzone.classList.remove("is-dragover");
-    });
-});
-
-dropzone.addEventListener("drop", async (event) => {
-    const file = event.dataTransfer.files[0];
-    if (file == undefined) {
-        return;
-    }
-    // input要素にも反映させておく（ダウンロード時のファイル名取得のため）
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    skinImageInput.files = dataTransfer.files;
-
-    await handleSelectedFile(file);
-});
-
-
-// スライダーのリスナー
-sliderInput.addEventListener("input", (event) => {
-    alphaValueInput.value = event.target.value;
-    setGamingCanvas();
-});
-
-
-// アルファ値Formのリスナー
-alphaValueInput.addEventListener("input", (event) => {
-    var value = event.target.value;
-    if (value === "" || isNaN(value)) {
-        return;
-    }
-    value = Math.min(1, Math.max(0, Number(value)));
-    sliderInput.value = value;
-    setGamingCanvas();
-});
-
-alphaValueInput.addEventListener("blur", (event) => {
-    event.target.value = Number(sliderInput.value).toFixed(2);
-});
-
-
-// ダウンロードボタンのListener
-downloadButton.onclick = (event) => {
-    const file = skinImageInput.files[0];
-    const isNotExistsImage = file == undefined;
-    if (isNotExistsImage) {
-        return;
-    }
-
-    const fileName = file.name.match(/([^/]*)\./)[1];
-
-    const link = document.createElement("a");
-    link.href = canvasResult.toDataURL("image/png");
-    link.download = fileName + "_gaming.png";
-    link.click();
-}
-
+var alphaIndexes = [];
+var skinSize = 0;
+var skinViewer = null;
+var orbitControls = null;
 
 // 3Dビューアーの操作Listener
 modelTypeSelect.addEventListener("change", () => {
@@ -118,11 +50,110 @@ resetCameraButton.addEventListener("click", () => {
     resetCamera();
 });
 
+function main() {
+    // 初期化を行う
+    initialize();
+}
 
+function initialize() {
+    // ゲーミング画像を読み込んでおく
+    readGamingImage();
+
+    // 画像選択のListener
+    elSkinImageInput.addEventListener("change", async () => {
+        // ファイル選択後の処理を実行
+        await handleSelectedFile(elSkinImageInput.files[0]);
+    });
+
+    // ドラッグ＆ドロップ対応
+    ["dragenter", "dragover"].forEach((eventName) => {
+        elDropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            elDropzone.classList.add("is-dragover");
+        });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+        elDropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            elDropzone.classList.remove("is-dragover");
+        });
+    });
+
+    elDropzone.addEventListener("drop", async (event) => {
+        const file = event.dataTransfer.files[0];
+        if (file == undefined) {
+            return;
+        }
+        // input要素にも反映させておく（ダウンロード時のファイル名取得のため）
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        elSkinImageInput.files = dataTransfer.files;
+
+        // ファイル選択後の処理を実行
+        await handleSelectedFile(file);
+    });
+
+    // アルファ値スライダーのリスナー
+    elSliderInput.addEventListener("input", (event) => {
+        // アルファ値Inputへ値を反映
+        elAlphaValueInput.value = event.target.value;
+
+        // ゲーミングCanvasへ反映
+        cutGamingImageFromCanvas();
+        changeGamingImageAlphaToCanvas();
+        setGamingSkinToCanvas();
+    });
+
+    // アルファ値Inputのリスナー
+    elAlphaValueInput.addEventListener("input", (event) => {
+        var value = event.target.value;
+        if (value === "" || isNaN(value)) {
+            return;
+        }
+        // 最小値0、最大値1になるように設定
+        value = Math.min(1, Math.max(0, Number(value)));
+        elSliderInput.value = value;
+
+        // ゲーミングCanvasへ反映
+        cutGamingImageFromCanvas();
+        changeGamingImageAlphaToCanvas();
+        setGamingSkinToCanvas();
+    });
+
+    elAlphaValueInput.addEventListener("blur", (event) => {
+        // 0.00フォーマットに変換する
+        event.target.value = Number(elSliderInput.value).toFixed(2);
+    });
+
+
+    // ダウンロードボタンのListener
+    elDownloadButton.onclick = (event) => {
+        // ファイルを取得
+        const file = elSkinImageInput.files[0];
+        if (undefined == file) {
+            return;
+        }
+
+        // ファイル名を取得
+        const fileName = file.name.match(/([^/]*)\./)[1];
+
+        // ダウンロード用リンクを作成
+        const link = document.createElement("a");
+        link.href = elCanvasGamingSkin.toDataURL("image/png");
+        link.download = fileName + "_gaming.png";
+
+        // クリック判定を行いダウンロードさせる
+        link.click();
+    }
+}
+
+// ファイル選択後処理
 async function handleSelectedFile(file) {
+    // エラー文を削除
     hideError();
 
-    if (file == undefined) {
+    if (undefined == file) {
         return;
     }
 
@@ -131,7 +162,8 @@ async function handleSelectedFile(file) {
         return;
     }
 
-    const skinImage = await loadInputtedImage(file).catch((e) => console.log(e));
+    // 選択画像を読み込む
+    skinImage = await loadInputtedImage(file).catch((e) => console.log(e));
     if (!skinImage) {
         showError("画像の読み込みに失敗しました");
         return;
@@ -147,132 +179,186 @@ async function handleSelectedFile(file) {
         }
     }
 
-    skinSize = skinImage.width;
-    fileStatus.textContent = file.name + "（" + skinImage.width + "×" + skinImage.height + "）を読み込みました";
-    fileStatus.classList.add("is-ready");
+    elFileStatus.textContent = file.name + "（" + skinImage.width + "×" + skinImage.height + "）を読み込みました";
+    elFileStatus.classList.add("is-ready");
 
-    setOriginalCanvas(skinImage);
+    // スキン画像をCanvasへ表示する
+    await setOriginalSkinToCanvas();
+
+    // 
+    cutGamingImageFromCanvas();
+    changeGamingImageAlphaToCanvas();
+
+    initGamingSkinCanvas();
+    await setGamingSkinToCanvas();
 }
 
-
 function showError(text) {
-    errorMessage.textContent = text;
-    errorMessage.hidden = false;
+    elErrorMessage.textContent = text;
+    elErrorMessage.hidden = false;
 }
 
 function hideError() {
-    errorMessage.hidden = true;
-    errorMessage.textContent = "";
+    elErrorMessage.hidden = true;
+    elErrorMessage.textContent = "";
 }
 
-
-async function setOriginalCanvas(skinImage) {
+// スキン画像をCanvasへセットする
+async function setOriginalSkinToCanvas() {
+    if (!skinImage) {
+        return;
+    }
+    const skinSize = skinImage.width;
 
     // Canvasのサイズを設定
-    canvasOriginal.width = skinSize;
-    canvasOriginal.height = skinSize;
-    const context = canvasOriginal.getContext("2d");
+    elCanvasOriginalSkin.width = skinSize;
+    elCanvasOriginalSkin.height = skinSize;
+
+    // 各Canvasを取得
+    const contextOriginalSkin = elCanvasOriginalSkin.getContext("2d");
 
     // Canvasをクリアする
-    context.clearRect(0, 0, skinSize, skinSize);
+    contextOriginalSkin.clearRect(0, 0, skinSize, skinSize);
 
-    // Canvasに画像をセットする
-    context.drawImage(skinImage, 0, 0);
-
-    // 画像データ・画像サイズを取得
-    const imageData = context.getImageData(0, 0, skinSize, skinSize);
-
-    // アルファ値が0のindexを取得
-    alphaIndexes = [];
-    for (var i = 3; i < imageData.data.length; i += 4) {
-        if (imageData.data[i] == 0) {
-            // indexをリストに追加
-            alphaIndexes.push(i);
-        }
-    }
+    // 画像をセットする
+    contextOriginalSkin.drawImage(skinImage, 0, 0);
 
     // 3Dプレビューは、ゲーミング加工の成否を待たずに
     // 読み込んだ元スキンでまず表示する
-    updateSkinViewerTexture(canvasOriginal);
-
-    setGamingCanvas();
+    // updateSkinViewerTexture(elCanvasOriginalSkin);
 }
 
-
-async function setGamingCanvas() {
-    if (skinSize == 0) {
+function cutGamingImageFromCanvas() {
+    if (!skinImage) {
         return;
     }
+    const skinSize = skinImage.width;
 
-    // 画像を取得する
-    const gamingImage = await loadImage("./image/gaming_128.png").catch((e) => {
-        console.log(e);
-        return null;
-    });
+    elCanvasGamingImage.width = skinSize;
+    elCanvasGamingImage.height = skinSize;
 
-    if (!gamingImage) {
-        // ゲーミング画像が読み込めない場合は、元スキンをそのまま
-        // 結果プレビューとして表示し、ユーザーにエラーを伝える
-        showError("ゲーミング画像（image/gaming_128.png）を読み込めませんでした。ファイル構成をご確認ください。");
-        copyOriginalToResult();
-        return;
-    }
-
-    // Canvasのサイズを設定
-    canvasGaming.width = skinSize;
-    canvasGaming.height = skinSize;
-    var context = canvasGaming.getContext("2d");
+    // 各Canvasを取得
+    const contextOriginalSkin = elCanvasOriginalSkin.getContext("2d");
+    const contextGamingImage = elCanvasGamingImage.getContext("2d");
 
     // Canvasをクリアする
-    context.clearRect(0, 0, skinSize, skinSize);
+    contextGamingImage.clearRect(0, 0, skinSize, skinSize);
 
-    // Canvasに画像をセットする
-    context.drawImage(gamingImage, 0, 0, gamingImage.width, gamingImage.height, 0, 0, skinSize, skinSize);
+    // 画像をセットする
+    contextGamingImage.drawImage(gamingImage, 0, 0, gamingImage.width, gamingImage.height, 0, 0, skinSize, skinSize);
 
-    // // スキンの透過部分と同じ箇所を切り取る
-    const imageData = context.getImageData(0, 0, skinSize, skinSize);
-    const alpha = sliderInput.value * 255;
-    for (var i = 3; i < imageData.data.length; i += 4) {
-        imageData.data[i] = alphaIndexes.includes(i) ? 0 : alpha;
+    // スキン画像の不透明部分に合わせてゲーミング画像を切り抜く
+    // RGBAのアルファ部分のみをループする -> 配列の中身: [ 0:R, 1:G, 2:B, 3:A, 4:R, 5:G, 6:B, 7:A ... ]
+    const skinImageRBGA = contextOriginalSkin.getImageData(0, 0, skinSize, skinSize);
+    const gamingImageRGBA = contextGamingImage.getImageData(0, 0, skinSize, skinSize);
+    skinNonAlphaIndexList = [];
+    for (var i = 3; i < skinImageRBGA.data.length; i += 4) {
+        // スキン画像の指定ピクセルが透明(Alpha=0)の場合
+        if (ALPHA_TRANSPARENT == skinImageRBGA.data[i]) {
+            // ゲーミング画像のピクセルを透明にする
+            gamingImageRGBA.data[i] = ALPHA_TRANSPARENT;
+        }
+        else {
+            // indexをリストに追加
+            skinNonAlphaIndexList.push(i);
+        }
     }
 
-    // Canvasに再び画像をセットする
-    context.putImageData(imageData, 0, 0);
-
-    generateGamingSkin();
+    // Canvasに切り取ったゲーミング画像をセットする
+    contextGamingImage.putImageData(gamingImageRGBA, 0, 0);
 }
 
-
-async function generateGamingSkin() {
-
-    canvasResult.width = skinSize;
-    canvasResult.height = skinSize;
-
-    const contextOriginal = canvasOriginal.getContext("2d");
-    const contextGaming = canvasGaming.getContext("2d");
-    const contextResult = canvasResult.getContext("2d");
-
-    for (var i = 0; i < 2; i++) {
-        const gamingSkinImage = await loadImage([
-            contextOriginal.canvas.toDataURL(),
-            contextGaming.canvas.toDataURL(),
-        ][i]);
-        contextResult.drawImage(gamingSkinImage, 0, 0, skinSize, skinSize);
+function changeGamingImageAlphaToCanvas() {
+    if (!skinImage) {
+        return;
     }
-    downloadButton.hidden = false;
+    const skinSize = skinImage.width;
 
-    updateSkinViewerTexture(canvasResult);
+    // Canvasを取得
+    const contextGamingImage = elCanvasGamingImage.getContext("2d");
+
+    // Canvasから画像データ(RGBA)を取得
+    const gamingImageRGBA = contextGamingImage.getImageData(0, 0, skinSize, skinSize);
+
+    // アルファ値を適用する
+    const alpha = elSliderInput.value * 255;
+    for (var i = 0; i < skinNonAlphaIndexList.length; i++) {
+        const nonAlphaIndex = skinNonAlphaIndexList[i];
+        gamingImageRGBA.data[nonAlphaIndex] = alpha;
+    }
+
+    // アルファ値を適用させた画像をCanvasにセットする
+    contextGamingImage.putImageData(gamingImageRGBA, 0, 0);
 }
 
+function initGamingSkinCanvas() {
+    if (!skinImage) {
+        return;
+    }
+    const skinSize = skinImage.width;
+
+    // Canvasのサイズを設定
+    elCanvasGamingSkin.width = skinSize;
+    elCanvasGamingSkin.height = skinSize;
+    elCanvasLayerEditing.width = skinSize;
+    elCanvasLayerEditing.height = skinSize;
+
+    // Canvasを取得
+    const contextGamingSkin = elCanvasGamingSkin.getContext("2d");
+
+    // Canvasをクリアする
+    contextGamingSkin.clearRect(0, 0, skinSize, skinSize);
+}
+
+async function setGamingSkinToCanvas() {
+    if (!skinImage) {
+        return;
+    }
+    const skinSize = skinImage.width;
+
+    // 各Canvasを取得
+    const contextGamingImage = elCanvasGamingImage.getContext("2d");
+    const contextLayerEditing = elCanvasLayerEditing.getContext("2d");
+    const contextGamingSkin = elCanvasGamingSkin.getContext("2d");
+
+    // レイヤー編集用Canvasをクリアする
+    contextLayerEditing.clearRect(0, 0, skinSize, skinSize);
+
+    // ゲーミング画像を画像データとして取得
+    const gamingImage = await loadImage(contextGamingImage.canvas.toDataURL());
+
+    // スキン画像とゲーミング画像を重ねてレイヤー編集用Canvasへ表示
+    contextLayerEditing.drawImage(skinImage, 0, 0, skinSize, skinSize);
+    contextLayerEditing.drawImage(gamingImage, 0, 0, skinSize, skinSize);
+
+    // レイヤー編集用Canvasからゲーミングスキン画像を取得してゲーミングスキンCanvasへ表示する
+    const gamingSkinImageRGBA = contextLayerEditing.getImageData(0, 0, skinSize, skinSize);
+    contextGamingSkin.putImageData(gamingSkinImageRGBA, 0, 0);
+}
+
+async function readGamingImage() {
+    // スキンデータに重ねる用の画像を取得する
+    if (!gamingImage) {
+        // 取得した画像を保持する
+        gamingImage = await loadImage("./image/gaming_128.png").catch((e) => {
+            console.log(e);
+            return null;
+        });
+        if (!gamingImage) {
+            console.error("The gaming-image could not be loaded.");
+            return;
+        }
+    }
+}
 
 // ゲーミング画像が読み込めない場合のフォールバック表示
 function copyOriginalToResult() {
-    canvasResult.width = skinSize;
-    canvasResult.height = skinSize;
-    const contextResult = canvasResult.getContext("2d");
+    elCanvasGamingSkin.width = skinSize;
+    elCanvasGamingSkin.height = skinSize;
+    const contextResult = elCanvasGamingSkin.getContext("2d");
     contextResult.clearRect(0, 0, skinSize, skinSize);
-    contextResult.drawImage(canvasOriginal, 0, 0);
-    downloadButton.hidden = false;
+    contextResult.drawImage(elCanvasOriginalSkin, 0, 0);
+    elDownloadButton.hidden = false;
 }
 
 
@@ -331,7 +417,7 @@ async function updateSkinViewerTexture(sourceCanvas) {
         return;
     }
 
-    sourceCanvas = sourceCanvas || canvasResult;
+    sourceCanvas = sourceCanvas || elCanvasGamingSkin;
 
     ensureSkinViewer();
     if (!skinViewer) {
@@ -392,3 +478,6 @@ function resetCamera() {
         orbitControls.reset();
     }
 }
+
+// メイン処理を実行
+main();

@@ -20,9 +20,9 @@
 
     <main class="layout">
 
-        <!-- ステップ1: スキン読み込み -->
+        <!-- スキン読み込み -->
         <section class="panel" id="panel-upload">
-            <h2 class="panel-title"><span class="step">01</span>スキンを選択</h2>
+            <h2 class="panel-title">スキンを選択</h2>
             <p class="panel-desc">64×64 または 128×128 の PNG 画像に対応しています。</p>
 
             <label for="skin_input" class="dropzone" id="dropzone">
@@ -38,10 +38,10 @@
             <p class="error-message" id="error_message" role="alert" hidden></p>
         </section>
 
-        <!-- ステップ2: アルファ値調整 -->
+        <!-- アルファ値調整 -->
         <section class="panel" id="panel-alpha">
-            <h2 class="panel-title"><span class="step">02</span>ゲーミングの濃さ</h2>
-            <p class="panel-desc">スライダーでゲーミングカラーの重ね具合を調整できます。</p>
+            <h2 class="panel-title">ゲーミングカラーの濃さ</h2>
+            <p class="panel-desc">スライダーでゲーミングカラーの重ね具合(透明度)を調整できます。</p>
 
             <div class="alpha-controls">
                 <input id="slider" class="slider" type="range" min="0" max="1" step="0.01" value="0.5">
@@ -51,9 +51,9 @@
             </div>
         </section>
 
-        <!-- ステップ3: 3Dプレビュー -->
+        <!-- プレビュー -->
         <section class="panel panel-wide" id="panel-3d">
-            <h2 class="panel-title"><span class="step">03</span>3Dプレイヤープレビュー</h2>
+            <h2 class="panel-title">プレビュー</h2>
             <p class="panel-desc">マウスドラッグ（PC）またはタッチ操作（スマホ）でプレイヤーを回転・ズームできます。</p>
 
             <div class="viewer-layout">
@@ -89,12 +89,6 @@
                     <button id="reset_camera" class="secondary-button" type="button">カメラをリセット</button>
                 </div>
             </div>
-        </section>
-
-        <!-- ステップ4: プレビュー -->
-        <section class="panel panel-wide" id="panel-preview">
-            <h2 class="panel-title"><span class="step">04</span>画像プレビュー</h2>
-
             <div class="preview-grid">
                 <div class="preview-card">
                     <p class="preview-label">Original</p>
@@ -106,7 +100,7 @@
                 <div class="preview-card">
                     <p class="preview-label">Gaming</p>
                     <div class="canvas-frame">
-                        <canvas id="canvas_result" width="64" height="64"></canvas>
+                        <canvas id="canvas_gaming" width="64" height="64"></canvas>
                     </div>
                 </div>
             </div>
