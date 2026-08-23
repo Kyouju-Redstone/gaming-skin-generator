@@ -14,42 +14,21 @@ const elCanvasGamingImage = document.createElement("canvas");
 const elCanvasLayerEditing = document.createElement("canvas");
 const elDownloadButton = document.getElementById("download");
 
-const canvas3d = document.getElementById("canvas_3d");
-const viewerPlaceholder = document.getElementById("viewer_placeholder");
-const modelTypeSelect = document.getElementById("model_type");
-const animationTypeSelect = document.getElementById("animation_type");
-const autoRotateCheckbox = document.getElementById("auto_rotate");
-const resetCameraButton = document.getElementById("reset_camera");
+const elCanvas3d = document.getElementById("canvas_3d");
+const elViewerPlaceholder = document.getElementById("viewer_placeholder");
+const elModelTypeSelect = document.getElementById("model_type");
+const elAnimationTypeSelect = document.getElementById("animation_type");
+const elAutoRotateCheckbox = document.getElementById("auto_rotate");
+const elResetCameraButton = document.getElementById("reset_camera");
 
 // 変数宣言
 let skinImage;
 let gamingImage;
 let skinNonAlphaIndexList = [];
-
-var alphaIndexes = [];
-var skinSize = 0;
-var skinViewer = null;
-var orbitControls = null;
-var initialZoom = 0.85;
-
-// 3Dビューアーの操作Listener
-modelTypeSelect.addEventListener("change", () => {
-    updateSkinViewerTexture();
-});
-
-animationTypeSelect.addEventListener("change", () => {
-    applyAnimation();
-});
-
-autoRotateCheckbox.addEventListener("change", (event) => {
-    if (skinViewer) {
-        skinViewer.autoRotate = event.target.checked;
-    }
-});
-
-resetCameraButton.addEventListener("click", () => {
-    resetCamera();
-});
+let alphaIndexes = [];
+let skinViewer = null;
+let orbitControls = null;
+let initialZoom = 0.85;
 
 function main() {
     // 初期化を行う
@@ -158,6 +137,25 @@ function initialize() {
         // クリック判定を行いダウンロードさせる
         link.click();
     }
+
+    // 3Dビューアーの操作Listener
+    elModelTypeSelect.addEventListener("change", () => {
+        updateSkinViewerTexture();
+    });
+
+    elAnimationTypeSelect.addEventListener("change", () => {
+        applyAnimation();
+    });
+
+    elAutoRotateCheckbox.addEventListener("change", (event) => {
+        if (skinViewer) {
+            skinViewer.autoRotate = event.target.checked;
+        }
+    });
+
+    elResetCameraButton.addEventListener("click", () => {
+        resetCamera();
+    });
 }
 
 // ファイル選択後処理
@@ -194,20 +192,18 @@ async function handleSelectedFile(file) {
     elFileStatus.textContent = file.name + "（" + skinImage.width + "×" + skinImage.height + "）を読み込みました";
     elFileStatus.classList.add("is-ready");
 
-    // 3Dプレビュー等で参照するグローバルなskinSizeを更新する
-    // (これが未設定のままだと updateSkinViewerTexture() が常に処理を中断してしまう)
-    skinSize = skinImage.width;
-
     // スキン画像をCanvasへ表示する
     await setOriginalSkinToCanvas();
 
-    // 
+    // ゲーミング画像をCanvasへ設定する
     cutGamingImageFromCanvas();
     changeGamingImageAlphaToCanvas();
 
+    // ゲーミングスキン画像をCanvasへ表示する
     initGamingSkinCanvas();
     await setGamingSkinToCanvas();
 
+    // 3Dプレビューを表示する
     updateSkinViewerTexture()
 }
 
@@ -240,9 +236,6 @@ async function setOriginalSkinToCanvas() {
 
     // 画像をセットする
     contextOriginalSkin.drawImage(skinImage, 0, 0);
-
-    // 3Dプレビューは、ゲーミング加工の成否を待たずに
-    // 読み込んだ元スキンでまず表示する
 }
 
 function cutGamingImageFromCanvas() {
@@ -404,14 +397,14 @@ function ensureSkinViewer() {
     }
 
     skinViewer = new skinview3d.SkinViewer({
-        canvas: canvas3d,
+        canvas: elCanvas3d,
         width: 260,
         height: 340,
     });
 
     skinViewer.fov = 55;
     skinViewer.zoom = 0.85;
-    skinViewer.autoRotate = autoRotateCheckbox.checked;
+    skinViewer.autoRotate = elAutoRotateCheckbox.checked;
     skinViewer.autoRotateSpeed = 1.0;
 
     // 現在のskinview3dでは、OrbitControlsはSkinViewerが内部で生成し
@@ -426,12 +419,12 @@ function ensureSkinViewer() {
     applyAnimation();
 }
 
-
 // sourceCanvas省略時は、直近で生成したゲーミング結果Canvasを使用する
 async function updateSkinViewerTexture() {
-    if (skinSize == 0) {
+    if (!skinImage) {
         return;
     }
+    const skinSize = skinImage.width;
 
     const sourceCanvas = elCanvasGamingSkin;
 
@@ -457,21 +450,20 @@ async function updateSkinViewerTexture() {
 
     try {
         await skinViewer.loadSkin(textureCanvas.toDataURL("image/png"), {
-            model: modelTypeSelect.value,
+            model: elModelTypeSelect.value,
         });
-        viewerPlaceholder.hidden = true;
+        elViewerPlaceholder.hidden = true;
     } catch (e) {
         console.log(e);
     }
 }
-
 
 function applyAnimation() {
     if (!skinViewer) {
         return;
     }
 
-    switch (animationTypeSelect.value) {
+    switch (elAnimationTypeSelect.value) {
         case "walk":
             skinViewer.animation = new skinview3d.WalkingAnimation();
             break;
@@ -483,7 +475,6 @@ function applyAnimation() {
             break;
     }
 }
-
 
 function resetCamera() {
     if (!skinViewer) {
