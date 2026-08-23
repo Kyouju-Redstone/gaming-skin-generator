@@ -403,7 +403,7 @@ function ensureSkinViewer() {
     });
 
     skinViewer.fov = 55;
-    skinViewer.zoom = 0.85;
+    skinViewer.zoom = 0.75;
     skinViewer.autoRotate = elAutoRotateCheckbox.checked;
     skinViewer.autoRotateSpeed = 1.0;
 
