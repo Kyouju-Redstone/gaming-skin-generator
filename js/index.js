@@ -30,6 +30,7 @@ var alphaIndexes = [];
 var skinSize = 0;
 var skinViewer = null;
 var orbitControls = null;
+var initialZoom = 0.85;
 
 // 3Dビューアーの操作Listener
 modelTypeSelect.addEventListener("change", () => {
@@ -58,6 +59,11 @@ function main() {
 function initialize() {
     // ゲーミング画像を読み込んでおく
     readGamingImage();
+
+    // 3Dビューアーは先に生成しておく
+    // (スキン選択直後にビューアー生成とloadSkinを同時に行うと
+    //  初回だけ描画されないことがあるため、あらかじめ生成しておく)
+    ensureSkinViewer();
 
     // 画像選択のListener
     elSkinImageInput.addEventListener("change", async () => {
@@ -95,18 +101,21 @@ function initialize() {
     });
 
     // アルファ値スライダーのリスナー
-    elSliderInput.addEventListener("input", (event) => {
+    elSliderInput.addEventListener("input", async (event) => {
         // アルファ値Inputへ値を反映
         elAlphaValueInput.value = event.target.value;
 
         // ゲーミングCanvasへ反映
         cutGamingImageFromCanvas();
         changeGamingImageAlphaToCanvas();
-        setGamingSkinToCanvas();
+        await setGamingSkinToCanvas();
+
+        // 3Dプレビューにも反映
+        updateSkinViewerTexture();
     });
 
     // アルファ値Inputのリスナー
-    elAlphaValueInput.addEventListener("input", (event) => {
+    elAlphaValueInput.addEventListener("input", async (event) => {
         var value = event.target.value;
         if (value === "" || isNaN(value)) {
             return;
@@ -118,7 +127,10 @@ function initialize() {
         // ゲーミングCanvasへ反映
         cutGamingImageFromCanvas();
         changeGamingImageAlphaToCanvas();
-        setGamingSkinToCanvas();
+        await setGamingSkinToCanvas();
+
+        // 3Dプレビューにも反映
+        updateSkinViewerTexture();
     });
 
     elAlphaValueInput.addEventListener("blur", (event) => {
@@ -182,6 +194,10 @@ async function handleSelectedFile(file) {
     elFileStatus.textContent = file.name + "（" + skinImage.width + "×" + skinImage.height + "）を読み込みました";
     elFileStatus.classList.add("is-ready");
 
+    // 3Dプレビュー等で参照するグローバルなskinSizeを更新する
+    // (これが未設定のままだと updateSkinViewerTexture() が常に処理を中断してしまう)
+    skinSize = skinImage.width;
+
     // スキン画像をCanvasへ表示する
     await setOriginalSkinToCanvas();
 
@@ -191,6 +207,8 @@ async function handleSelectedFile(file) {
 
     initGamingSkinCanvas();
     await setGamingSkinToCanvas();
+
+    updateSkinViewerTexture()
 }
 
 function showError(text) {
@@ -225,7 +243,6 @@ async function setOriginalSkinToCanvas() {
 
     // 3Dプレビューは、ゲーミング加工の成否を待たずに
     // 読み込んだ元スキンでまず表示する
-    // updateSkinViewerTexture(elCanvasOriginalSkin);
 }
 
 function cutGamingImageFromCanvas() {
@@ -361,7 +378,6 @@ function copyOriginalToResult() {
     elDownloadButton.hidden = false;
 }
 
-
 async function loadImage(path) {
     return new Promise((resolve, reject) => {
         const image = new Image();
@@ -370,7 +386,6 @@ async function loadImage(path) {
         image.src = path;
     });
 }
-
 
 async function loadInputtedImage(file) {
     const imageUrl = await new Promise((resolve, reject) => {
@@ -382,9 +397,6 @@ async function loadInputtedImage(file) {
 
     return loadImage(imageUrl);
 }
-
-
-/* ------------------ 3Dプレイヤープレビュー ------------------ */
 
 function ensureSkinViewer() {
     if (skinViewer || typeof skinview3d === "undefined") {
@@ -402,22 +414,26 @@ function ensureSkinViewer() {
     skinViewer.autoRotate = autoRotateCheckbox.checked;
     skinViewer.autoRotateSpeed = 1.0;
 
-    orbitControls = skinview3d.createOrbitControls(skinViewer);
+    // 現在のskinview3dでは、OrbitControlsはSkinViewerが内部で生成し
+    // skinViewer.controls として公開される（createOrbitControlsは存在しない）
+    orbitControls = skinViewer.controls;
     orbitControls.enableRotate = true;
     orbitControls.enableZoom = true;
     orbitControls.enablePan = false;
+
+    initialZoom = skinViewer.zoom;
 
     applyAnimation();
 }
 
 
 // sourceCanvas省略時は、直近で生成したゲーミング結果Canvasを使用する
-async function updateSkinViewerTexture(sourceCanvas) {
+async function updateSkinViewerTexture() {
     if (skinSize == 0) {
         return;
     }
 
-    sourceCanvas = sourceCanvas || elCanvasGamingSkin;
+    const sourceCanvas = elCanvasGamingSkin;
 
     ensureSkinViewer();
     if (!skinViewer) {
@@ -473,10 +489,11 @@ function resetCamera() {
     if (!skinViewer) {
         return;
     }
-    skinViewer.zoom = 0.85;
-    if (orbitControls) {
-        orbitControls.reset();
-    }
+
+    // ズームを初期値に戻したうえで、SkinViewer組み込みの
+    // resetCameraPose()でカメラの位置・向きを正面にリセットする
+    skinViewer.zoom = initialZoom;
+    skinViewer.resetCameraPose();
 }
 
 // メイン処理を実行
